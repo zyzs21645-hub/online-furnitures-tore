@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../includes/localization.php';
 
+$currentLanguage = adminCurrentLanguage();
+
 if (isset($_SESSION['admin_user_id'])) {
     header('Location: ../inventory/manage.php');
     exit;

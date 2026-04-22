@@ -207,15 +207,33 @@ if (!function_exists('adminAvailableLanguages')) {
 if (!function_exists('adminCurrentLanguage')) {
     function adminCurrentLanguage(): string
     {
+        static $resolvedLanguage = null;
+
+        if (is_string($resolvedLanguage) && $resolvedLanguage !== '') {
+            return $resolvedLanguage;
+        }
+
         $allowedLanguages = adminAvailableLanguages();
 
         if (isset($_GET['lang']) && is_string($_GET['lang']) && in_array($_GET['lang'], $allowedLanguages, true)) {
-            $_SESSION['admin_lang'] = $_GET['lang'];
-            adminSetLanguageCookie($_GET['lang']);
+            $selectedLanguage = $_GET['lang'];
+            $_SESSION['admin_lang'] = $selectedLanguage;
+
+            if (
+                !isset($_COOKIE[adminLanguageCookieName()])
+                || !is_string($_COOKIE[adminLanguageCookieName()])
+                || $_COOKIE[adminLanguageCookieName()] !== $selectedLanguage
+            ) {
+                adminSetLanguageCookie($selectedLanguage);
+            }
+
+            $resolvedLanguage = $selectedLanguage;
+            return $resolvedLanguage;
         }
 
         if (isset($_SESSION['admin_lang']) && is_string($_SESSION['admin_lang']) && in_array($_SESSION['admin_lang'], $allowedLanguages, true)) {
-            return $_SESSION['admin_lang'];
+            $resolvedLanguage = $_SESSION['admin_lang'];
+            return $resolvedLanguage;
         }
 
         if (
@@ -224,12 +242,22 @@ if (!function_exists('adminCurrentLanguage')) {
             && in_array($_COOKIE[adminLanguageCookieName()], $allowedLanguages, true)
         ) {
             $_SESSION['admin_lang'] = $_COOKIE[adminLanguageCookieName()];
-            return $_SESSION['admin_lang'];
+            $resolvedLanguage = $_SESSION['admin_lang'];
+            return $resolvedLanguage;
         }
 
         $_SESSION['admin_lang'] = 'en';
-        adminSetLanguageCookie('en');
-        return 'en';
+
+        if (
+            !isset($_COOKIE[adminLanguageCookieName()])
+            || !is_string($_COOKIE[adminLanguageCookieName()])
+            || $_COOKIE[adminLanguageCookieName()] !== 'en'
+        ) {
+            adminSetLanguageCookie('en');
+        }
+
+        $resolvedLanguage = 'en';
+        return $resolvedLanguage;
     }
 }
 
