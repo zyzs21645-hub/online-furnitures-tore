@@ -1,7 +1,0 @@
-{
-  "$schema": "https://railway.com/railway.schema.json",
-  "deploy": {
-    "preDeployCommand": "php database/migrate.php",
-    "startCommand": "php -S 0.0.0.0:${PORT:-8080} -t admin"
-  }
-}
