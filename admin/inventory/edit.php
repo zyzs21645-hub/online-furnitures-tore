@@ -53,6 +53,7 @@ $formData = [
 ];
 
 $errors = [];
+$currentImagePath = $formData['image'];
 
 if (!function_exists('adminTextLength')) {
     function adminTextLength(string $value): int
@@ -61,13 +62,44 @@ if (!function_exists('adminTextLength')) {
     }
 }
 
+if (!function_exists('adminEditUploadText')) {
+    function adminEditUploadText(string $key): string
+    {
+        $texts = [
+            'en' => [
+                'image_upload_failed' => 'The image upload failed. Please try again.',
+                'image_invalid_upload' => 'Please upload a valid image file: JPG, PNG, GIF, or WEBP.',
+                'image_upload_directory_failed' => 'The uploads directory could not be prepared.',
+                'image_upload_label' => 'Furniture Image',
+                'image_upload_drop_title' => 'Drag and drop a new furniture image here',
+                'image_upload_drop_desc' => 'Leave it empty if you want to keep the current image.',
+                'image_upload_browse' => 'Browse Files',
+                'image_upload_hint' => 'Upload a replacement image from your device only when you want to change the current one.'
+            ],
+            'ar' => [
+                'image_upload_failed' => 'فشل رفع الصورة. حاول مرة أخرى.',
+                'image_invalid_upload' => 'يرجى رفع ملف صورة صالح: JPG أو PNG أو GIF أو WEBP.',
+                'image_upload_directory_failed' => 'تعذر تجهيز مجلد الرفع.',
+                'image_upload_label' => 'صورة الأثاث',
+                'image_upload_drop_title' => 'اسحب وأفلت صورة أثاث جديدة هنا',
+                'image_upload_drop_desc' => 'اترك الحقل فارغًا إذا كنت تريد الاحتفاظ بالصورة الحالية.',
+                'image_upload_browse' => 'اختيار ملف',
+                'image_upload_hint' => 'ارفع صورة بديلة من جهازك فقط عند الرغبة في تغيير الصورة الحالية.'
+            ],
+        ];
+
+        $language = adminCurrentLanguage();
+        return $texts[$language][$key] ?? $texts['en'][$key] ?? $key;
+    }
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $formData['item_name'] = trim((string) ($_POST['item_name'] ?? ''));
     $formData['description'] = trim((string) ($_POST['description'] ?? ''));
     $formData['price'] = trim((string) ($_POST['price'] ?? ''));
     $formData['stock_quantity'] = trim((string) ($_POST['stock_quantity'] ?? ''));
-    $formData['image'] = trim((string) ($_POST['image'] ?? ''));
     $formData['category_id'] = trim((string) ($_POST['category_id'] ?? ''));
+    $formData['image'] = $currentImagePath;
 
     if ($formData['item_name'] === '') {
         $errors['item_name'] = adminTrans('item_name_required');
@@ -87,10 +119,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors['stock_quantity'] = adminTrans('stock_required');
     }
 
-    if ($formData['image'] !== '' && filter_var($formData['image'], FILTER_VALIDATE_URL) === false) {
-        $errors['image'] = adminTrans('image_invalid');
-    }
-
     if ($formData['category_id'] === '' || filter_var($formData['category_id'], FILTER_VALIDATE_INT) === false) {
         $errors['category_id'] = adminTrans('category_required');
     } else {
@@ -105,6 +133,54 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (!$categoryCheck->fetch()) {
             $errors['category_id'] = adminTrans('category_missing');
+        }
+    }
+
+    $hasNewUpload = isset($_FILES['image_file'])
+        && is_array($_FILES['image_file'])
+        && (int) ($_FILES['image_file']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE;
+
+    if ($hasNewUpload) {
+        $imageFile = $_FILES['image_file'];
+        $uploadError = (int) ($imageFile['error'] ?? UPLOAD_ERR_NO_FILE);
+
+        if ($uploadError !== UPLOAD_ERR_OK) {
+            $errors['image_file'] = adminEditUploadText('image_upload_failed');
+        } else {
+            $tmpPath = (string) ($imageFile['tmp_name'] ?? '');
+            $originalName = (string) ($imageFile['name'] ?? '');
+            $fileInfo = @getimagesize($tmpPath);
+            $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
+            $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+            $mimeType = $fileInfo['mime'] ?? '';
+            $allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+
+            if ($tmpPath === '' || !is_uploaded_file($tmpPath) || $fileInfo === false) {
+                $errors['image_file'] = adminEditUploadText('image_invalid_upload');
+            } elseif (!in_array($extension, $allowedExtensions, true) || !in_array($mimeType, $allowedMimeTypes, true)) {
+                $errors['image_file'] = adminEditUploadText('image_invalid_upload');
+            }
+        }
+    }
+
+    if ($errors === [] && $hasNewUpload) {
+        $uploadsDirectory = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'uploads';
+
+        if (!is_dir($uploadsDirectory) && !mkdir($uploadsDirectory, 0777, true) && !is_dir($uploadsDirectory)) {
+            $errors['image_file'] = adminEditUploadText('image_upload_directory_failed');
+        } else {
+            $imageFile = $_FILES['image_file'];
+            $originalName = (string) ($imageFile['name'] ?? '');
+            $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
+            $safeFileName = 'furniture_' . date('Ymd_His') . '_' . bin2hex(random_bytes(6)) . '.' . $extension;
+            $targetPath = $uploadsDirectory . DIRECTORY_SEPARATOR . $safeFileName;
+            $databasePath = '../uploads/' . $safeFileName;
+
+            if (!move_uploaded_file((string) $imageFile['tmp_name'], $targetPath)) {
+                $errors['image_file'] = adminEditUploadText('image_upload_failed');
+            } else {
+                $formData['image'] = $databasePath;
+            }
         }
     }
 
@@ -141,6 +217,15 @@ $headerActions = '<a class="btn btn-secondary" href="../inventory/manage.php"><i
 
 require_once __DIR__ . '/../includes/header.php';
 ?>
+<style>
+#imagePreview img {
+    max-width: 100%;
+    max-height: 200px;
+    object-fit: contain;
+    border-radius: 8px;
+}
+</style>
+
 <section class="hero-banner glass-card fade-up">
     <span class="badge">
         <i class="fa-solid fa-pen-to-square"></i>
@@ -165,7 +250,7 @@ require_once __DIR__ . '/../includes/header.php';
         <p><?php echo htmlspecialchars(adminTrans('edit_furniture_details_desc'), ENT_QUOTES, 'UTF-8'); ?></p>
     </div>
 
-    <form action="edit.php?id=<?php echo $itemId; ?>" method="post" novalidate>
+    <form action="edit.php?id=<?php echo $itemId; ?>" method="post" enctype="multipart/form-data" novalidate>
         <div class="form-grid">
             <div class="form-group">
                 <label for="item_name"><?php echo htmlspecialchars(adminTrans('item_name'), ENT_QUOTES, 'UTF-8'); ?></label>
@@ -268,19 +353,36 @@ require_once __DIR__ . '/../includes/header.php';
             </div>
 
             <div class="form-group full-width">
-                <label for="image"><?php echo htmlspecialchars(adminTrans('image_url'), ENT_QUOTES, 'UTF-8'); ?></label>
-                <input
-                    class="<?php echo isset($errors['image']) ? 'input-error' : ''; ?>"
-                    id="image"
-                    name="image"
-                    type="url"
-                    placeholder="<?php echo htmlspecialchars(adminTrans('image_placeholder'), ENT_QUOTES, 'UTF-8'); ?>"
-                    value="<?php echo htmlspecialchars($formData['image'], ENT_QUOTES, 'UTF-8'); ?>"
+                <label for="image_file"><?php echo htmlspecialchars(adminEditUploadText('image_upload_label'), ENT_QUOTES, 'UTF-8'); ?></label>
+                <div
+                    class="upload-zone <?php echo isset($errors['image_file']) ? 'input-error' : ''; ?> <?php echo $formData['image'] !== '' ? 'has-file' : ''; ?>"
+                    data-upload-zone
+                    data-upload-input="#image_file"
+                    data-upload-preview="#imagePreview"
                 >
-                <?php if (isset($errors['image'])): ?>
-                    <span class="field-error"><?php echo htmlspecialchars($errors['image'], ENT_QUOTES, 'UTF-8'); ?></span>
+                    <input
+                        class="file-input-hidden"
+                        id="image_file"
+                        name="image_file"
+                        type="file"
+                        accept="image/*"
+                    >
+                    <div class="upload-zone-content">
+                        <i class="fa-solid fa-cloud-arrow-up"></i>
+                        <strong><?php echo htmlspecialchars(adminEditUploadText('image_upload_drop_title'), ENT_QUOTES, 'UTF-8'); ?></strong>
+                        <p class="upload-hint"><?php echo htmlspecialchars(adminEditUploadText('image_upload_drop_desc'), ENT_QUOTES, 'UTF-8'); ?></p>
+                        <div class="upload-zone-actions">
+                            <button class="btn btn-secondary" type="button" data-upload-trigger>
+                                <i class="fa-solid fa-folder-open"></i>
+                                <?php echo htmlspecialchars(adminEditUploadText('image_upload_browse'), ENT_QUOTES, 'UTF-8'); ?>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <?php if (isset($errors['image_file'])): ?>
+                    <span class="field-error"><?php echo htmlspecialchars($errors['image_file'], ENT_QUOTES, 'UTF-8'); ?></span>
                 <?php else: ?>
-                    <span class="helper-text"><?php echo htmlspecialchars(adminTrans('image_hint'), ENT_QUOTES, 'UTF-8'); ?></span>
+                    <span class="helper-text"><?php echo htmlspecialchars(adminEditUploadText('image_upload_hint'), ENT_QUOTES, 'UTF-8'); ?></span>
                 <?php endif; ?>
             </div>
 
@@ -312,37 +414,4 @@ require_once __DIR__ . '/../includes/header.php';
         </div>
     </form>
 </section>
-
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    var imageInput = document.getElementById('image');
-    var preview = document.getElementById('imagePreview');
-
-    if (!imageInput || !preview) {
-        return;
-    }
-
-    var placeholderMarkup = '' +
-        '<div class="image-preview-placeholder">' +
-            '<i class="fa-solid fa-image"></i>' +
-            '<strong>' + previewTitle + '</strong>' +
-            '<p style="margin: 8px 0 0;">' + previewDescription + '</p>' +
-        '</div>';
-
-    function renderPreview() {
-        var value = imageInput.value.trim();
-
-        if (value === '') {
-            preview.innerHTML = placeholderMarkup;
-            return;
-        }
-
-        preview.innerHTML = '<img src="' + value.replace(/"/g, '&quot;') + '" alt="Furniture preview">';
-    }
-
-    imageInput.addEventListener('input', renderPreview);
-});
-</script>
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>
-var previewTitle = <?php echo json_encode(adminTrans('image_preview_placeholder_title'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
-var previewDescription = <?php echo json_encode(adminTrans('image_preview_placeholder_desc'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
