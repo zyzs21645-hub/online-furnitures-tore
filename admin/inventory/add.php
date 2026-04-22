@@ -5,6 +5,8 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+require_once __DIR__ . '/../includes/localization.php';
+
 if (!isset($_SESSION['admin_user_id']) || strtolower((string) ($_SESSION['admin_role'] ?? '')) !== 'admin') {
     header('Location: ../auth/login.php');
     exit;
@@ -46,29 +48,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $formData['category_id'] = trim((string) ($_POST['category_id'] ?? ''));
 
     if ($formData['item_name'] === '') {
-        $errors['item_name'] = 'Furniture item name is required.';
+        $errors['item_name'] = adminTrans('item_name_required');
     } elseif (adminTextLength($formData['item_name']) > 100) {
-        $errors['item_name'] = 'Item name must be 100 characters or fewer.';
+        $errors['item_name'] = adminTrans('item_name_too_long');
     }
 
     if ($formData['description'] === '') {
-        $errors['description'] = 'Please add a short furniture description.';
+        $errors['description'] = adminTrans('description_required');
     }
 
     if ($formData['price'] === '' || !is_numeric($formData['price']) || (float) $formData['price'] <= 0) {
-        $errors['price'] = 'Price must be a valid number greater than zero.';
+        $errors['price'] = adminTrans('price_required');
     }
 
     if ($formData['stock_quantity'] === '' || filter_var($formData['stock_quantity'], FILTER_VALIDATE_INT) === false || (int) $formData['stock_quantity'] < 0) {
-        $errors['stock_quantity'] = 'Stock quantity must be a whole number of zero or more.';
+        $errors['stock_quantity'] = adminTrans('stock_required');
     }
 
     if ($formData['image'] !== '' && filter_var($formData['image'], FILTER_VALIDATE_URL) === false) {
-        $errors['image'] = 'Image must be a valid URL or left empty.';
+        $errors['image'] = adminTrans('image_invalid');
     }
 
     if ($formData['category_id'] === '' || filter_var($formData['category_id'], FILTER_VALIDATE_INT) === false) {
-        $errors['category_id'] = 'Please choose a valid category.';
+        $errors['category_id'] = adminTrans('category_required');
     } else {
         $categoryCheck = $pdo->prepare(
             'SELECT category_id
@@ -80,7 +82,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $categoryCheck->execute();
 
         if (!$categoryCheck->fetch()) {
-            $errors['category_id'] = 'The selected category does not exist.';
+            $errors['category_id'] = adminTrans('category_missing');
         }
     }
 
@@ -97,73 +99,73 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $insertStatement->bindValue(':category_id', (int) $formData['category_id'], PDO::PARAM_INT);
         $insertStatement->execute();
 
-        header('Location: ../inventory/manage.php?message=' . urlencode('Furniture item added successfully.') . '&type=success');
+        header('Location: ../inventory/manage.php?message_key=item_added_success&type=success');
         exit;
     }
 }
 
-$pageTitle = 'Add Furniture';
-$pageHeading = 'Add Furniture Item';
-$pageDescription = 'Create a polished new furniture listing with pricing, stock, category, and image details.';
+$pageTitle = adminTrans('add_furniture');
+$pageHeading = adminTrans('add_furniture');
+$pageDescription = adminTrans('furniture_details_desc');
 $currentPage = 'add';
-$headerActions = '<a class="btn btn-secondary" href="../inventory/manage.php"><i class="fa-solid fa-arrow-left"></i>Back to Inventory</a>';
+$headerActions = '<a class="btn btn-secondary" href="../inventory/manage.php"><i class="fa-solid fa-arrow-left"></i>' . htmlspecialchars(adminTrans('back_to_inventory'), ENT_QUOTES, 'UTF-8') . '</a>';
 
 require_once __DIR__ . '/../includes/header.php';
 ?>
 <section class="hero-banner glass-card fade-up">
     <span class="badge">
         <i class="fa-solid fa-chair"></i>
-        New Inventory Entry
+        <?php echo htmlspecialchars(adminTrans('new_inventory_entry'), ENT_QUOTES, 'UTF-8'); ?>
     </span>
-    <h2 style="margin-top: 14px;">Add a furniture piece that feels ready for the showroom.</h2>
+    <h2 style="margin-top: 14px;"><?php echo htmlspecialchars(adminTrans('add_showroom_ready_item'), ENT_QUOTES, 'UTF-8'); ?></h2>
     <p style="margin-top: 12px;">
-        Enter clean product details to keep the catalog organized, visually appealing, and easy for customers to browse.
+        <?php echo htmlspecialchars(adminTrans('add_showroom_ready_item_desc'), ENT_QUOTES, 'UTF-8'); ?>
     </p>
 </section>
 
 <?php if ($errors !== []): ?>
     <div class="alert alert-error fade-up">
         <i class="fa-solid fa-circle-exclamation"></i>
-        <div>Please review the highlighted fields and correct the form before saving.</div>
+        <div><?php echo htmlspecialchars(adminTrans('review_highlighted_fields'), ENT_QUOTES, 'UTF-8'); ?></div>
     </div>
 <?php endif; ?>
 
 <section class="form-card fade-up">
     <div class="form-header">
-        <h2>Furniture Details</h2>
-        <p>Every field here feeds the admin catalog directly, so accuracy matters.</p>
+        <h2><?php echo htmlspecialchars(adminTrans('furniture_details'), ENT_QUOTES, 'UTF-8'); ?></h2>
+        <p><?php echo htmlspecialchars(adminTrans('furniture_details_desc'), ENT_QUOTES, 'UTF-8'); ?></p>
     </div>
 
     <form action="add.php" method="post" novalidate>
         <div class="form-grid">
             <div class="form-group">
-                <label for="item_name">Item Name</label>
+                <label for="item_name"><?php echo htmlspecialchars(adminTrans('item_name'), ENT_QUOTES, 'UTF-8'); ?></label>
                 <input
                     class="<?php echo isset($errors['item_name']) ? 'input-error' : ''; ?>"
                     id="item_name"
                     name="item_name"
                     type="text"
                     maxlength="100"
-                    placeholder="Modern Oak Dining Table"
+                    placeholder="<?php echo htmlspecialchars(adminTrans('item_name_placeholder'), ENT_QUOTES, 'UTF-8'); ?>"
                     value="<?php echo htmlspecialchars($formData['item_name'], ENT_QUOTES, 'UTF-8'); ?>"
                     required
                 >
                 <?php if (isset($errors['item_name'])): ?>
                     <span class="field-error"><?php echo htmlspecialchars($errors['item_name'], ENT_QUOTES, 'UTF-8'); ?></span>
                 <?php else: ?>
-                    <span class="helper-text">Use a product name customers can recognize quickly.</span>
+                    <span class="helper-text"><?php echo htmlspecialchars(adminTrans('item_name_hint'), ENT_QUOTES, 'UTF-8'); ?></span>
                 <?php endif; ?>
             </div>
 
             <div class="form-group">
-                <label for="category_id">Category</label>
+                <label for="category_id"><?php echo htmlspecialchars(adminTrans('category'), ENT_QUOTES, 'UTF-8'); ?></label>
                 <select
                     class="<?php echo isset($errors['category_id']) ? 'input-error' : ''; ?>"
                     id="category_id"
                     name="category_id"
                     required
                 >
-                    <option value="">Select category</option>
+                    <option value=""><?php echo htmlspecialchars(adminTrans('select_category'), ENT_QUOTES, 'UTF-8'); ?></option>
                     <?php foreach ($categories as $category): ?>
                         <option
                             value="<?php echo (int) $category['category_id']; ?>"
@@ -176,12 +178,12 @@ require_once __DIR__ . '/../includes/header.php';
                 <?php if (isset($errors['category_id'])): ?>
                     <span class="field-error"><?php echo htmlspecialchars($errors['category_id'], ENT_QUOTES, 'UTF-8'); ?></span>
                 <?php else: ?>
-                    <span class="helper-text">Choose the furniture category already defined in the database.</span>
+                    <span class="helper-text"><?php echo htmlspecialchars(adminTrans('category_hint'), ENT_QUOTES, 'UTF-8'); ?></span>
                 <?php endif; ?>
             </div>
 
             <div class="form-group">
-                <label for="price">Price</label>
+                <label for="price"><?php echo htmlspecialchars(adminTrans('price'), ENT_QUOTES, 'UTF-8'); ?></label>
                 <input
                     class="<?php echo isset($errors['price']) ? 'input-error' : ''; ?>"
                     id="price"
@@ -196,12 +198,12 @@ require_once __DIR__ . '/../includes/header.php';
                 <?php if (isset($errors['price'])): ?>
                     <span class="field-error"><?php echo htmlspecialchars($errors['price'], ENT_QUOTES, 'UTF-8'); ?></span>
                 <?php else: ?>
-                    <span class="helper-text">Enter the selling price in your store catalog.</span>
+                    <span class="helper-text"><?php echo htmlspecialchars(adminTrans('price_hint'), ENT_QUOTES, 'UTF-8'); ?></span>
                 <?php endif; ?>
             </div>
 
             <div class="form-group">
-                <label for="stock_quantity">Stock Quantity</label>
+                <label for="stock_quantity"><?php echo htmlspecialchars(adminTrans('stock'), ENT_QUOTES, 'UTF-8'); ?></label>
                 <input
                     class="<?php echo isset($errors['stock_quantity']) ? 'input-error' : ''; ?>"
                     id="stock_quantity"
@@ -216,53 +218,53 @@ require_once __DIR__ . '/../includes/header.php';
                 <?php if (isset($errors['stock_quantity'])): ?>
                     <span class="field-error"><?php echo htmlspecialchars($errors['stock_quantity'], ENT_QUOTES, 'UTF-8'); ?></span>
                 <?php else: ?>
-                    <span class="helper-text">Keep this aligned with the real available inventory.</span>
+                    <span class="helper-text"><?php echo htmlspecialchars(adminTrans('stock_hint'), ENT_QUOTES, 'UTF-8'); ?></span>
                 <?php endif; ?>
             </div>
 
             <div class="form-group full-width">
-                <label for="description">Description</label>
+                <label for="description"><?php echo htmlspecialchars(adminTrans('description'), ENT_QUOTES, 'UTF-8'); ?></label>
                 <textarea
                     class="<?php echo isset($errors['description']) ? 'input-error' : ''; ?>"
                     id="description"
                     name="description"
-                    placeholder="Describe materials, style, dimensions, and the ideal room placement."
+                    placeholder="<?php echo htmlspecialchars(adminTrans('description_placeholder'), ENT_QUOTES, 'UTF-8'); ?>"
                     required
                 ><?php echo htmlspecialchars($formData['description'], ENT_QUOTES, 'UTF-8'); ?></textarea>
                 <?php if (isset($errors['description'])): ?>
                     <span class="field-error"><?php echo htmlspecialchars($errors['description'], ENT_QUOTES, 'UTF-8'); ?></span>
                 <?php else: ?>
-                    <span class="helper-text">A strong description improves both admin clarity and future storefront quality.</span>
+                    <span class="helper-text"><?php echo htmlspecialchars(adminTrans('description_hint'), ENT_QUOTES, 'UTF-8'); ?></span>
                 <?php endif; ?>
             </div>
 
             <div class="form-group full-width">
-                <label for="image">Image URL</label>
+                <label for="image"><?php echo htmlspecialchars(adminTrans('image_url'), ENT_QUOTES, 'UTF-8'); ?></label>
                 <input
                     class="<?php echo isset($errors['image']) ? 'input-error' : ''; ?>"
                     id="image"
                     name="image"
                     type="url"
-                    placeholder="http://localhost/online_furniture_store/uploads/oak-table.jpg"
+                    placeholder="<?php echo htmlspecialchars(adminTrans('image_placeholder'), ENT_QUOTES, 'UTF-8'); ?>"
                     value="<?php echo htmlspecialchars($formData['image'], ENT_QUOTES, 'UTF-8'); ?>"
                 >
                 <?php if (isset($errors['image'])): ?>
                     <span class="field-error"><?php echo htmlspecialchars($errors['image'], ENT_QUOTES, 'UTF-8'); ?></span>
                 <?php else: ?>
-                    <span class="helper-text">Optional: add a local or hosted image URL for the product card.</span>
+                    <span class="helper-text"><?php echo htmlspecialchars(adminTrans('image_hint'), ENT_QUOTES, 'UTF-8'); ?></span>
                 <?php endif; ?>
             </div>
 
             <div class="form-group full-width">
-                <label>Preview</label>
+                <label><?php echo htmlspecialchars(adminTrans('preview'), ENT_QUOTES, 'UTF-8'); ?></label>
                 <div class="image-preview" id="imagePreview">
                     <?php if ($formData['image'] !== ''): ?>
                         <img src="<?php echo htmlspecialchars($formData['image'], ENT_QUOTES, 'UTF-8'); ?>" alt="Furniture preview">
                     <?php else: ?>
                         <div class="image-preview-placeholder">
                             <i class="fa-solid fa-image"></i>
-                            <strong>Image preview will appear here</strong>
-                            <p style="margin: 8px 0 0;">Paste a valid image URL to visualize the product before saving.</p>
+                            <strong><?php echo htmlspecialchars(adminTrans('image_preview_placeholder_title'), ENT_QUOTES, 'UTF-8'); ?></strong>
+                            <p style="margin: 8px 0 0;"><?php echo htmlspecialchars(adminTrans('image_preview_placeholder_desc'), ENT_QUOTES, 'UTF-8'); ?></p>
                         </div>
                     <?php endif; ?>
                 </div>
@@ -272,11 +274,11 @@ require_once __DIR__ . '/../includes/header.php';
         <div class="action-row" style="margin-top: 24px;">
             <button class="btn btn-primary" type="submit">
                 <i class="fa-solid fa-floppy-disk"></i>
-                Save Furniture Item
+                <?php echo htmlspecialchars(adminTrans('save_furniture_item'), ENT_QUOTES, 'UTF-8'); ?>
             </button>
             <a class="btn btn-secondary" href="../inventory/manage.php">
                 <i class="fa-solid fa-xmark"></i>
-                Cancel
+                <?php echo htmlspecialchars(adminTrans('cancel'), ENT_QUOTES, 'UTF-8'); ?>
             </a>
         </div>
     </form>
@@ -294,8 +296,8 @@ document.addEventListener('DOMContentLoaded', function () {
     var placeholderMarkup = '' +
         '<div class="image-preview-placeholder">' +
             '<i class="fa-solid fa-image"></i>' +
-            '<strong>Image preview will appear here</strong>' +
-            '<p style="margin: 8px 0 0;">Paste a valid image URL to visualize the product before saving.</p>' +
+            '<strong>' + previewTitle + '</strong>' +
+            '<p style="margin: 8px 0 0;">' + previewDescription + '</p>' +
         '</div>';
 
     function renderPreview() {
@@ -313,3 +315,5 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>
+var previewTitle = <?php echo json_encode(adminTrans('image_preview_placeholder_title'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
+var previewDescription = <?php echo json_encode(adminTrans('image_preview_placeholder_desc'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
