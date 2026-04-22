@@ -1,13 +1,12 @@
 <?php
 declare(strict_types=1);
 
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+require_once __DIR__ . '/../includes/localization.php';
 
 $language = isset($_SESSION['admin_lang']) && is_string($_SESSION['admin_lang']) ? $_SESSION['admin_lang'] : 'en';
 
 $_SESSION = [];
+adminClearRememberCookie();
 
 if (ini_get('session.use_cookies')) {
     $params = session_get_cookie_params();

@@ -1,10 +1,6 @@
 <?php
 declare(strict_types=1);
 
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-
 require_once __DIR__ . '/../includes/localization.php';
 
 if (isset($_SESSION['admin_user_id'])) {
@@ -74,6 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['admin_full_name'] = (string) $adminUser['full_name'];
                 $_SESSION['admin_email'] = (string) $adminUser['email'];
                 $_SESSION['admin_role'] = (string) $adminUser['role'];
+                adminSetRememberCookie($adminUser);
 
                 header('Location: ../inventory/manage.php');
                 exit;
