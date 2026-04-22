@@ -5,6 +5,8 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+require_once __DIR__ . '/../includes/localization.php';
+
 if (isset($_SESSION['admin_user_id'])) {
     header('Location: ../inventory/manage.php');
     exit;
@@ -14,17 +16,22 @@ require_once __DIR__ . '/../config/db_connect.php';
 
 $email = '';
 $errorMessage = '';
-$successMessage = trim((string) ($_GET['message'] ?? ''));
+$successMessage = '';
+$successMessageKey = trim((string) ($_GET['message_key'] ?? ''));
 $messageType = trim((string) ($_GET['type'] ?? ''));
+
+if ($successMessageKey !== '' && adminHasTranslation($successMessageKey)) {
+    $successMessage = adminTrans($successMessageKey);
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = trim((string) filter_input(INPUT_POST, 'email', FILTER_SANITIZE_EMAIL));
     $password = (string) ($_POST['password'] ?? '');
 
     if ($email === '' || $password === '') {
-        $errorMessage = 'Please enter both your admin email and password.';
+        $errorMessage = adminTrans('please_enter_email_and_password');
     } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        $errorMessage = 'Please enter a valid email address.';
+        $errorMessage = adminTrans('please_enter_valid_email');
     } else {
         $statement = $pdo->prepare(
             'SELECT user_id, full_name, email, password, role
@@ -73,13 +80,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
-        $errorMessage = 'Incorrect admin credentials. Please try again.';
+        $errorMessage = adminTrans('incorrect_admin_credentials');
     }
 }
 
-$pageTitle = 'Admin Login';
-$pageHeading = 'Admin Login';
-$pageDescription = 'Secure access for catalog and inventory management.';
+$pageTitle = adminTrans('admin_login');
+$pageHeading = adminTrans('admin_login');
+$pageDescription = adminTrans('admin_login_desc');
 $showSidebar = false;
 $showTopbar = false;
 $bodyClass = 'login-page';
@@ -90,33 +97,33 @@ require_once __DIR__ . '/../includes/header.php';
     <section class="login-showcase fade-up">
         <span class="badge">
             <i class="fa-solid fa-gem"></i>
-            Premium Furniture Store
+            <?php echo htmlspecialchars(adminTrans('premium_furniture_store'), ENT_QUOTES, 'UTF-8'); ?>
         </span>
-        <h1>Shape the showroom behind every elegant order.</h1>
+        <h1><?php echo htmlspecialchars(adminTrans('shape_showroom_title'), ENT_QUOTES, 'UTF-8'); ?></h1>
         <p>
-            Access the admin console to keep stock levels accurate, refine furniture details, and maintain a polished shopping experience for every customer.
+            <?php echo htmlspecialchars(adminTrans('shape_showroom_desc'), ENT_QUOTES, 'UTF-8'); ?>
         </p>
 
         <div class="login-features">
             <div class="login-feature">
                 <i class="fa-solid fa-layer-group"></i>
                 <div>
-                    <strong>Curated inventory control</strong>
-                    <p style="margin: 4px 0 0;">Update products, categories, pricing, and availability from one refined workspace.</p>
+                    <strong><?php echo htmlspecialchars(adminTrans('curated_inventory_control'), ENT_QUOTES, 'UTF-8'); ?></strong>
+                    <p style="margin: 4px 0 0;"><?php echo htmlspecialchars(adminTrans('curated_inventory_control_desc'), ENT_QUOTES, 'UTF-8'); ?></p>
                 </div>
             </div>
             <div class="login-feature">
                 <i class="fa-solid fa-shield-halved"></i>
                 <div>
-                    <strong>Protected admin access</strong>
-                    <p style="margin: 4px 0 0;">Session-based authentication with secure password verification and guarded redirects.</p>
+                    <strong><?php echo htmlspecialchars(adminTrans('protected_admin_access'), ENT_QUOTES, 'UTF-8'); ?></strong>
+                    <p style="margin: 4px 0 0;"><?php echo htmlspecialchars(adminTrans('protected_admin_access_desc'), ENT_QUOTES, 'UTF-8'); ?></p>
                 </div>
             </div>
             <div class="login-feature">
                 <i class="fa-solid fa-swatchbook"></i>
                 <div>
-                    <strong>Designed for clarity</strong>
-                    <p style="margin: 4px 0 0;">A luxury-inspired control panel with dark and light themes for focused work.</p>
+                    <strong><?php echo htmlspecialchars(adminTrans('designed_for_clarity'), ENT_QUOTES, 'UTF-8'); ?></strong>
+                    <p style="margin: 4px 0 0;"><?php echo htmlspecialchars(adminTrans('designed_for_clarity_desc'), ENT_QUOTES, 'UTF-8'); ?></p>
                 </div>
             </div>
         </div>
@@ -124,15 +131,15 @@ require_once __DIR__ . '/../includes/header.php';
         <ul class="trust-list">
             <li>
                 <i class="fa-solid fa-lock"></i>
-                Secure admin-only sign in
+                <?php echo htmlspecialchars(adminTrans('secure_admin_sign_in'), ENT_QUOTES, 'UTF-8'); ?>
             </li>
             <li>
                 <i class="fa-solid fa-warehouse"></i>
-                Inventory-ready workflow
+                <?php echo htmlspecialchars(adminTrans('inventory_ready_workflow'), ENT_QUOTES, 'UTF-8'); ?>
             </li>
             <li>
                 <i class="fa-solid fa-moon"></i>
-                Built-in theme preference memory
+                <?php echo htmlspecialchars(adminTrans('built_in_theme_memory'), ENT_QUOTES, 'UTF-8'); ?>
             </li>
         </ul>
     </section>
@@ -140,10 +147,19 @@ require_once __DIR__ . '/../includes/header.php';
     <section class="login-card fade-up delay-1">
         <span class="badge">
             <i class="fa-solid fa-user-shield"></i>
-            Admin Portal
+            <?php echo htmlspecialchars(adminTrans('admin_portal'), ENT_QUOTES, 'UTF-8'); ?>
         </span>
-        <h2>Welcome back</h2>
-        <p>Sign in with your administrator account to manage the furniture catalog.</p>
+        <h2><?php echo htmlspecialchars(adminTrans('welcome_back'), ENT_QUOTES, 'UTF-8'); ?></h2>
+        <p><?php echo htmlspecialchars(adminTrans('sign_in_with_admin_account'), ENT_QUOTES, 'UTF-8'); ?></p>
+
+        <div class="lang-switch" style="margin: 18px 0 22px;">
+            <a class="icon-btn lang-btn <?php echo adminCurrentLanguage() === 'en' ? 'active' : ''; ?>" href="<?php echo htmlspecialchars(adminUrlWithLang('en'), ENT_QUOTES, 'UTF-8'); ?>" aria-label="<?php echo htmlspecialchars(adminTrans('switch_to_english'), ENT_QUOTES, 'UTF-8'); ?>">
+                <?php echo htmlspecialchars(adminTrans('language_en'), ENT_QUOTES, 'UTF-8'); ?>
+            </a>
+            <a class="icon-btn lang-btn <?php echo adminCurrentLanguage() === 'ar' ? 'active' : ''; ?>" href="<?php echo htmlspecialchars(adminUrlWithLang('ar'), ENT_QUOTES, 'UTF-8'); ?>" aria-label="<?php echo htmlspecialchars(adminTrans('switch_to_arabic'), ENT_QUOTES, 'UTF-8'); ?>">
+                <?php echo htmlspecialchars(adminTrans('language_ar'), ENT_QUOTES, 'UTF-8'); ?>
+            </a>
+        </div>
 
         <?php if ($successMessage !== '' && $messageType === 'success'): ?>
             <div class="alert alert-success" data-auto-dismiss="4000">
@@ -161,28 +177,28 @@ require_once __DIR__ . '/../includes/header.php';
 
         <form class="login-form" action="login.php" method="post" novalidate>
             <div class="form-group">
-                <label for="email">Admin Email</label>
+                <label for="email"><?php echo htmlspecialchars(adminTrans('admin_email'), ENT_QUOTES, 'UTF-8'); ?></label>
                 <input
                     id="email"
                     name="email"
                     type="email"
                     inputmode="email"
                     autocomplete="username"
-                    placeholder="admin@example.com"
+                    placeholder="<?php echo htmlspecialchars(adminTrans('admin_email_placeholder'), ENT_QUOTES, 'UTF-8'); ?>"
                     value="<?php echo htmlspecialchars($email, ENT_QUOTES, 'UTF-8'); ?>"
                     required
                 >
             </div>
 
             <div class="form-group">
-                <label for="password">Password</label>
+                <label for="password"><?php echo htmlspecialchars(adminTrans('password'), ENT_QUOTES, 'UTF-8'); ?></label>
                 <div class="password-field">
                     <input
                         id="password"
                         name="password"
                         type="password"
                         autocomplete="current-password"
-                        placeholder="Enter your password"
+                        placeholder="<?php echo htmlspecialchars(adminTrans('password_placeholder'), ENT_QUOTES, 'UTF-8'); ?>"
                         required
                     >
                     <button
@@ -190,7 +206,9 @@ require_once __DIR__ . '/../includes/header.php';
                         type="button"
                         data-password-toggle
                         data-target="#password"
-                        aria-label="Show password"
+                        data-label-show="<?php echo htmlspecialchars(adminTrans('show_password'), ENT_QUOTES, 'UTF-8'); ?>"
+                        data-label-hide="<?php echo htmlspecialchars(adminTrans('hide_password'), ENT_QUOTES, 'UTF-8'); ?>"
+                        aria-label="<?php echo htmlspecialchars(adminTrans('show_password'), ENT_QUOTES, 'UTF-8'); ?>"
                     >
                         <i class="fa-solid fa-eye"></i>
                     </button>
@@ -200,9 +218,17 @@ require_once __DIR__ . '/../includes/header.php';
             <div class="action-row">
                 <button class="btn btn-primary" type="submit">
                     <i class="fa-solid fa-arrow-right-to-bracket"></i>
-                    Sign In
+                    <?php echo htmlspecialchars(adminTrans('sign_in'), ENT_QUOTES, 'UTF-8'); ?>
                 </button>
-                <button class="theme-toggle" type="button" data-theme-toggle aria-label="Toggle theme" aria-pressed="false">
+                <button
+                    class="theme-toggle"
+                    type="button"
+                    data-theme-toggle
+                    data-title-light="<?php echo htmlspecialchars(adminTrans('theme_light'), ENT_QUOTES, 'UTF-8'); ?>"
+                    data-title-dark="<?php echo htmlspecialchars(adminTrans('theme_dark'), ENT_QUOTES, 'UTF-8'); ?>"
+                    aria-label="<?php echo htmlspecialchars(adminTrans('toggle_theme'), ENT_QUOTES, 'UTF-8'); ?>"
+                    aria-pressed="false"
+                >
                     <i class="fa-solid fa-moon" data-theme-icon></i>
                 </button>
             </div>

@@ -5,6 +5,8 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+$language = isset($_SESSION['admin_lang']) && is_string($_SESSION['admin_lang']) ? $_SESSION['admin_lang'] : 'en';
+
 $_SESSION = [];
 
 if (ini_get('session.use_cookies')) {
@@ -22,5 +24,5 @@ if (ini_get('session.use_cookies')) {
 
 session_destroy();
 
-header('Location: login.php?message=' . urlencode('You have been logged out successfully.') . '&type=success');
+header('Location: login.php?lang=' . urlencode($language) . '&message_key=logout_success&type=success');
 exit;

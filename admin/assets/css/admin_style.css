@@ -448,6 +448,25 @@ button {
     box-shadow: var(--shadow-soft);
 }
 
+.lang-switch {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.lang-btn {
+    min-width: 54px;
+    width: auto;
+    padding: 0 14px;
+    font-weight: 800;
+}
+
+.lang-btn.active {
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    color: #fff;
+    border-color: transparent;
+}
+
 .metrics-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -997,6 +1016,45 @@ textarea:focus {
 
 .text-success {
     color: var(--success);
+}
+
+[dir='rtl'] body {
+    text-align: right;
+}
+
+[dir='rtl'] .admin-sidebar {
+    border-right: 0;
+    border-left: 1px solid var(--border);
+}
+
+[dir='rtl'] .sidebar-link:hover,
+[dir='rtl'] .sidebar-link:focus-visible,
+[dir='rtl'] .sidebar-link.active {
+    transform: translateX(-4px);
+}
+
+[dir='rtl'] thead th {
+    text-align: right;
+}
+
+[dir='rtl'] .search-bar i {
+    left: auto;
+    right: 18px;
+}
+
+[dir='rtl'] .search-bar input {
+    padding-left: 18px;
+    padding-right: 48px;
+}
+
+[dir='rtl'] .password-field input {
+    padding-right: 18px;
+    padding-left: 54px;
+}
+
+[dir='rtl'] .password-toggle {
+    right: auto;
+    left: 16px;
 }
 
 .fade-up {

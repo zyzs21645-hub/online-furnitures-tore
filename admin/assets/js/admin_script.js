@@ -44,7 +44,12 @@
 
         document.querySelectorAll('[data-theme-toggle]').forEach(function (toggleButton) {
             toggleButton.setAttribute('aria-pressed', String(isDark));
-            toggleButton.setAttribute('title', isDark ? 'Switch to light mode' : 'Switch to dark mode');
+            toggleButton.setAttribute(
+                'title',
+                isDark
+                    ? (toggleButton.getAttribute('data-title-light') || 'Switch to light mode')
+                    : (toggleButton.getAttribute('data-title-dark') || 'Switch to dark mode')
+            );
 
             var icon = toggleButton.querySelector('[data-theme-icon]');
 
@@ -81,7 +86,10 @@
                 var icon = toggleButton.querySelector('i');
 
                 input.setAttribute('type', shouldShowPassword ? 'text' : 'password');
-                toggleButton.setAttribute('aria-label', shouldShowPassword ? 'Hide password' : 'Show password');
+                var hideLabel = toggleButton.getAttribute('data-label-hide') || 'Hide password';
+                var showLabel = toggleButton.getAttribute('data-label-show') || 'Show password';
+
+                toggleButton.setAttribute('aria-label', shouldShowPassword ? hideLabel : showLabel);
 
                 if (icon) {
                     icon.classList.toggle('fa-eye', !shouldShowPassword);

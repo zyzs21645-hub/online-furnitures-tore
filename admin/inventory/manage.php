@@ -5,6 +5,8 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+require_once __DIR__ . '/../includes/localization.php';
+
 if (!isset($_SESSION['admin_user_id']) || strtolower((string) ($_SESSION['admin_role'] ?? '')) !== 'admin') {
     header('Location: ../auth/login.php');
     exit;
@@ -14,7 +16,12 @@ require_once __DIR__ . '/../config/db_connect.php';
 
 $searchTerm = trim((string) ($_GET['search'] ?? ''));
 $flashMessage = trim((string) ($_GET['message'] ?? ''));
+$flashMessageKey = trim((string) ($_GET['message_key'] ?? ''));
 $flashType = trim((string) ($_GET['type'] ?? 'success'));
+
+if ($flashMessageKey !== '' && adminHasTranslation($flashMessageKey)) {
+    $flashMessage = adminTrans($flashMessageKey);
+}
 
 $metricsStatement = $pdo->query(
     'SELECT
@@ -62,7 +69,7 @@ if (!function_exists('adminPreviewText')) {
         $normalized = trim(preg_replace('/\s+/', ' ', $text) ?? '');
 
         if ($normalized === '') {
-            return 'No description available.';
+            return adminTrans('no_description_available');
         }
 
         if (function_exists('mb_strlen') && function_exists('mb_substr')) {
@@ -80,31 +87,31 @@ if ($flashType === 'error') {
     $alertClass = 'alert-warning';
 }
 
-$pageTitle = 'Inventory Dashboard';
-$pageHeading = 'Inventory Dashboard';
-$pageDescription = 'Track furniture listings, stock movement, and product readiness from one premium workspace.';
+$pageTitle = adminTrans('inventory_dashboard');
+$pageHeading = adminTrans('inventory_dashboard');
+$pageDescription = adminTrans('inventory_dashboard_desc');
 $currentPage = 'manage';
-$headerActions = '<a class="btn btn-primary" href="../inventory/add.php"><i class="fa-solid fa-plus"></i>Add Furniture</a>';
+$headerActions = '<a class="btn btn-primary" href="../inventory/add.php"><i class="fa-solid fa-plus"></i>' . htmlspecialchars(adminTrans('add_furniture'), ENT_QUOTES, 'UTF-8') . '</a>';
 
 require_once __DIR__ . '/../includes/header.php';
 ?>
 <section class="hero-banner glass-card fade-up">
     <span class="badge">
         <i class="fa-solid fa-warehouse"></i>
-        Admin Inventory Control
+        <?php echo htmlspecialchars(adminTrans('admin_inventory_control'), ENT_QUOTES, 'UTF-8'); ?>
     </span>
-    <h2 style="margin-top: 14px;">Maintain a curated catalog with precise stock visibility.</h2>
+    <h2 style="margin-top: 14px;"><?php echo htmlspecialchars(adminTrans('maintain_curated_catalog'), ENT_QUOTES, 'UTF-8'); ?></h2>
     <p style="margin-top: 12px;">
-        Review every furniture item, identify low-stock products quickly, and keep your storefront polished with fast edit and delete actions.
+        <?php echo htmlspecialchars(adminTrans('maintain_curated_catalog_desc'), ENT_QUOTES, 'UTF-8'); ?>
     </p>
     <div class="hero-actions">
         <a class="btn btn-primary" href="../inventory/add.php">
             <i class="fa-solid fa-plus"></i>
-            Add New Item
+            <?php echo htmlspecialchars(adminTrans('add_new_item_full'), ENT_QUOTES, 'UTF-8'); ?>
         </a>
         <a class="btn btn-secondary" href="manage.php">
             <i class="fa-solid fa-rotate-right"></i>
-            Refresh View
+            <?php echo htmlspecialchars(adminTrans('refresh_view'), ENT_QUOTES, 'UTF-8'); ?>
         </a>
     </div>
 </section>
@@ -118,19 +125,19 @@ require_once __DIR__ . '/../includes/header.php';
 
 <section class="metrics-grid page-section">
     <article class="metric-card fade-up">
-        <p>Total Furniture Items</p>
+        <p><?php echo htmlspecialchars(adminTrans('total_furniture_items'), ENT_QUOTES, 'UTF-8'); ?></p>
         <strong><?php echo number_format((int) $metrics['total_items']); ?></strong>
     </article>
     <article class="metric-card fade-up delay-1">
-        <p>Total Units in Stock</p>
+        <p><?php echo htmlspecialchars(adminTrans('total_units_in_stock'), ENT_QUOTES, 'UTF-8'); ?></p>
         <strong><?php echo number_format((int) $metrics['total_units']); ?></strong>
     </article>
     <article class="metric-card fade-up delay-2">
-        <p>Estimated Inventory Value</p>
+        <p><?php echo htmlspecialchars(adminTrans('estimated_inventory_value'), ENT_QUOTES, 'UTF-8'); ?></p>
         <strong>$<?php echo number_format((float) $metrics['inventory_value'], 2); ?></strong>
     </article>
     <article class="metric-card fade-up delay-3">
-        <p>Low Stock Alerts</p>
+        <p><?php echo htmlspecialchars(adminTrans('low_stock_alerts'), ENT_QUOTES, 'UTF-8'); ?></p>
         <strong><?php echo number_format((int) $metrics['low_stock_items']); ?></strong>
     </article>
 </section>
@@ -138,15 +145,15 @@ require_once __DIR__ . '/../includes/header.php';
 <section class="table-card page-section fade-up">
     <div class="table-header">
         <div>
-            <h2>Furniture Collection</h2>
-            <p class="text-muted">Browse all products, filter the list, and take action instantly.</p>
+            <h2><?php echo htmlspecialchars(adminTrans('furniture_collection'), ENT_QUOTES, 'UTF-8'); ?></h2>
+            <p class="text-muted"><?php echo htmlspecialchars(adminTrans('browse_filter_take_action'), ENT_QUOTES, 'UTF-8'); ?></p>
         </div>
         <form action="manage.php" method="get" class="search-bar">
             <i class="fa-solid fa-magnifying-glass"></i>
             <input
                 type="search"
                 name="search"
-                placeholder="Search by name, description, or category"
+                placeholder="<?php echo htmlspecialchars(adminTrans('search_inventory_placeholder'), ENT_QUOTES, 'UTF-8'); ?>"
                 value="<?php echo htmlspecialchars($searchTerm, ENT_QUOTES, 'UTF-8'); ?>"
             >
         </form>
@@ -157,12 +164,12 @@ require_once __DIR__ . '/../includes/header.php';
             <table>
                 <thead>
                     <tr>
-                        <th>Furniture Item</th>
-                        <th>Category</th>
-                        <th>Price</th>
-                        <th>Stock</th>
-                        <th>Added</th>
-                        <th>Actions</th>
+                        <th><?php echo htmlspecialchars(adminTrans('furniture_item'), ENT_QUOTES, 'UTF-8'); ?></th>
+                        <th><?php echo htmlspecialchars(adminTrans('category'), ENT_QUOTES, 'UTF-8'); ?></th>
+                        <th><?php echo htmlspecialchars(adminTrans('price'), ENT_QUOTES, 'UTF-8'); ?></th>
+                        <th><?php echo htmlspecialchars(adminTrans('stock'), ENT_QUOTES, 'UTF-8'); ?></th>
+                        <th><?php echo htmlspecialchars(adminTrans('added'), ENT_QUOTES, 'UTF-8'); ?></th>
+                        <th><?php echo htmlspecialchars(adminTrans('actions'), ENT_QUOTES, 'UTF-8'); ?></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -198,14 +205,14 @@ require_once __DIR__ . '/../includes/header.php';
                             <td>
                                 <span class="badge">
                                     <i class="fa-solid fa-tags"></i>
-                                    <?php echo htmlspecialchars((string) ($item['category_name'] ?? 'Uncategorized'), ENT_QUOTES, 'UTF-8'); ?>
+                                    <?php echo htmlspecialchars((string) ($item['category_name'] ?? adminTrans('uncategorized')), ENT_QUOTES, 'UTF-8'); ?>
                                 </span>
                             </td>
                             <td class="price-text">$<?php echo number_format((float) $item['price'], 2); ?></td>
                             <td>
                                 <span class="status-badge <?php echo htmlspecialchars($stockStatusClass, ENT_QUOTES, 'UTF-8'); ?>">
                                     <i class="fa-solid fa-cubes-stacked"></i>
-                                    <?php echo number_format($stockQuantity); ?> units
+                                    <?php echo number_format($stockQuantity); ?> <?php echo htmlspecialchars(adminTrans('units'), ENT_QUOTES, 'UTF-8'); ?>
                                 </span>
                             </td>
                             <td>
@@ -218,15 +225,15 @@ require_once __DIR__ . '/../includes/header.php';
                                 <div class="table-actions">
                                     <a class="btn btn-secondary" href="../inventory/edit.php?id=<?php echo (int) $item['item_id']; ?>">
                                         <i class="fa-solid fa-pen-to-square"></i>
-                                        Edit
+                                        <?php echo htmlspecialchars(adminTrans('edit'), ENT_QUOTES, 'UTF-8'); ?>
                                     </a>
                                     <a
                                         class="btn btn-danger"
                                         href="../inventory/delete.php?id=<?php echo (int) $item['item_id']; ?>"
-                                        data-confirm="Delete this furniture item permanently?"
+                                        data-confirm="<?php echo htmlspecialchars(adminTrans('delete_confirm_question'), ENT_QUOTES, 'UTF-8'); ?>"
                                     >
                                         <i class="fa-solid fa-trash-can"></i>
-                                        Delete
+                                        <?php echo htmlspecialchars(adminTrans('delete'), ENT_QUOTES, 'UTF-8'); ?>
                                     </a>
                                 </div>
                             </td>
@@ -238,23 +245,23 @@ require_once __DIR__ . '/../includes/header.php';
     <?php else: ?>
         <div class="empty-state">
             <i class="fa-solid fa-box-open"></i>
-            <h3 style="margin: 0 0 8px;">No furniture items found</h3>
+            <h3 style="margin: 0 0 8px;"><?php echo htmlspecialchars(adminTrans('no_furniture_items_found'), ENT_QUOTES, 'UTF-8'); ?></h3>
             <p style="margin: 0;">
                 <?php if ($searchTerm !== ''): ?>
-                    No results matched your search. Try a different keyword or clear the filter.
+                    <?php echo htmlspecialchars(adminTrans('no_search_results'), ENT_QUOTES, 'UTF-8'); ?>
                 <?php else: ?>
-                    Your inventory is currently empty. Add the first furniture item to start managing the catalog.
+                    <?php echo htmlspecialchars(adminTrans('inventory_empty'), ENT_QUOTES, 'UTF-8'); ?>
                 <?php endif; ?>
             </p>
             <div class="hero-actions" style="justify-content: center;">
                 <a class="btn btn-primary" href="../inventory/add.php">
                     <i class="fa-solid fa-plus"></i>
-                    Add Furniture
+                    <?php echo htmlspecialchars(adminTrans('add_furniture'), ENT_QUOTES, 'UTF-8'); ?>
                 </a>
                 <?php if ($searchTerm !== ''): ?>
                     <a class="btn btn-secondary" href="manage.php">
                         <i class="fa-solid fa-filter-circle-xmark"></i>
-                        Clear Search
+                        <?php echo htmlspecialchars(adminTrans('clear_search'), ENT_QUOTES, 'UTF-8'); ?>
                     </a>
                 <?php endif; ?>
             </div>
