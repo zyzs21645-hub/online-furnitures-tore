@@ -84,28 +84,15 @@
 
                 var shouldShowPassword = input.getAttribute('type') === 'password';
                 var icon = toggleButton.querySelector('i');
-
-                input.setAttribute('type', shouldShowPassword ? 'text' : 'password');
                 var hideLabel = toggleButton.getAttribute('data-label-hide') || 'Hide password';
                 var showLabel = toggleButton.getAttribute('data-label-show') || 'Show password';
 
+                input.setAttribute('type', shouldShowPassword ? 'text' : 'password');
                 toggleButton.setAttribute('aria-label', shouldShowPassword ? hideLabel : showLabel);
 
                 if (icon) {
                     icon.classList.toggle('fa-eye', !shouldShowPassword);
                     icon.classList.toggle('fa-eye-slash', shouldShowPassword);
-                }
-            });
-        });
-    }
-
-    function initializeConfirmActions() {
-        document.querySelectorAll('[data-confirm]').forEach(function (element) {
-            element.addEventListener('click', function (event) {
-                var message = element.getAttribute('data-confirm') || 'Are you sure you want to continue?';
-
-                if (!window.confirm(message)) {
-                    event.preventDefault();
                 }
             });
         });
@@ -147,11 +134,417 @@
         });
     }
 
+    function ensureModalMarkup() {
+        var existingModal = document.getElementById('adminActionModal');
+
+        if (existingModal) {
+            return existingModal;
+        }
+
+        var modal = document.createElement('div');
+        modal.id = 'adminActionModal';
+        modal.className = 'admin-modal';
+        modal.setAttribute('aria-hidden', 'true');
+        modal.innerHTML = '' +
+            '<div class="admin-modal-backdrop" data-modal-close></div>' +
+            '<div class="admin-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="adminModalTitle">' +
+                '<button class="admin-modal-close" type="button" data-modal-close aria-label="Close modal">' +
+                    '<i class="fa-solid fa-xmark"></i>' +
+                '</button>' +
+                '<div class="admin-modal-icon">' +
+                    '<i class="fa-solid fa-triangle-exclamation"></i>' +
+                '</div>' +
+                '<h3 id="adminModalTitle" class="admin-modal-title"></h3>' +
+                '<p class="admin-modal-message"></p>' +
+                '<div class="admin-modal-actions">' +
+                    '<button class="btn btn-secondary" type="button" data-modal-cancel>Cancel</button>' +
+                    '<button class="btn btn-danger" type="button" data-modal-confirm>Confirm</button>' +
+                '</div>' +
+            '</div>';
+
+        document.body.appendChild(modal);
+        return modal;
+    }
+
+    function showConfirmModal(options) {
+        return new Promise(function (resolve) {
+            var modal = ensureModalMarkup();
+            var title = modal.querySelector('.admin-modal-title');
+            var message = modal.querySelector('.admin-modal-message');
+            var confirmButton = modal.querySelector('[data-modal-confirm]');
+            var cancelButton = modal.querySelector('[data-modal-cancel]');
+            var closeTriggers = modal.querySelectorAll('[data-modal-close]');
+            var cleanupHandlers = [];
+
+            function closeModal(result) {
+                modal.classList.remove('is-visible');
+                modal.setAttribute('aria-hidden', 'true');
+                document.body.classList.remove('modal-open');
+
+                cleanupHandlers.forEach(function (cleanup) {
+                    cleanup();
+                });
+
+                resolve(result);
+            }
+
+            function bindTemporaryListener(element, eventName, handler) {
+                element.addEventListener(eventName, handler);
+                cleanupHandlers.push(function () {
+                    element.removeEventListener(eventName, handler);
+                });
+            }
+
+            title.textContent = options.title || 'Confirm action';
+            message.textContent = options.message || 'Are you sure you want to continue?';
+            confirmButton.textContent = options.confirmText || 'Confirm';
+            cancelButton.textContent = options.cancelText || 'Cancel';
+
+            bindTemporaryListener(confirmButton, 'click', function () {
+                closeModal(true);
+            });
+
+            bindTemporaryListener(cancelButton, 'click', function () {
+                closeModal(false);
+            });
+
+            closeTriggers.forEach(function (trigger) {
+                bindTemporaryListener(trigger, 'click', function () {
+                    closeModal(false);
+                });
+            });
+
+            bindTemporaryListener(document, 'keydown', function (event) {
+                if (event.key === 'Escape') {
+                    closeModal(false);
+                }
+            });
+
+            modal.classList.add('is-visible');
+            modal.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('modal-open');
+            confirmButton.focus();
+        });
+    }
+
+    function initializeConfirmActions() {
+        document.querySelectorAll('[data-confirm]').forEach(function (element) {
+            element.addEventListener('click', function (event) {
+                event.preventDefault();
+
+                var href = element.getAttribute('href');
+                var message = element.getAttribute('data-confirm') || 'Are you sure you want to continue?';
+                var title = element.getAttribute('data-confirm-title') || 'Confirm action';
+                var confirmText = element.getAttribute('data-confirm-ok') || 'Confirm';
+                var cancelText = element.getAttribute('data-confirm-cancel') || 'Cancel';
+
+                showConfirmModal({
+                    title: title,
+                    message: message,
+                    confirmText: confirmText,
+                    cancelText: cancelText
+                }).then(function (confirmed) {
+                    if (!confirmed) {
+                        return;
+                    }
+
+                    if (element.tagName === 'A' && href) {
+                        window.location.href = href;
+                        return;
+                    }
+
+                    if (element.tagName === 'BUTTON') {
+                        var form = element.closest('form');
+
+                        if (form) {
+                            form.submit();
+                        }
+                    }
+                });
+            });
+        });
+    }
+
+    function animateCounter(element) {
+        var rawValue = element.getAttribute('data-count-value');
+
+        if (!rawValue) {
+            return;
+        }
+
+        var target = Number(rawValue);
+
+        if (!Number.isFinite(target)) {
+            return;
+        }
+
+        var prefix = element.getAttribute('data-count-prefix') || '';
+        var suffix = element.getAttribute('data-count-suffix') || '';
+        var decimals = Number(element.getAttribute('data-count-decimals') || 0);
+        var duration = Number(element.getAttribute('data-count-duration') || 900);
+        var startTime = null;
+
+        function render(value) {
+            var formatted = value.toLocaleString(undefined, {
+                minimumFractionDigits: decimals,
+                maximumFractionDigits: decimals
+            });
+
+            element.textContent = prefix + formatted + suffix;
+        }
+
+        function step(timestamp) {
+            if (!startTime) {
+                startTime = timestamp;
+            }
+
+            var progress = Math.min((timestamp - startTime) / duration, 1);
+            var currentValue = target * progress;
+
+            render(progress === 1 ? target : currentValue);
+
+            if (progress < 1) {
+                window.requestAnimationFrame(step);
+            }
+        }
+
+        render(0);
+        window.requestAnimationFrame(step);
+    }
+
+    function initializeCounterAnimations() {
+        document.querySelectorAll('[data-count-value]').forEach(function (element) {
+            animateCounter(element);
+        });
+    }
+
+    function buildTableRow(item) {
+        var stockClass = 'success';
+
+        if (Number(item.stock_quantity) <= 5) {
+            stockClass = 'danger';
+        } else if (Number(item.stock_quantity) <= 15) {
+            stockClass = 'warning';
+        }
+
+        return '' +
+            '<tr>' +
+                '<td>' +
+                    '<div class="table-item">' +
+                        '<img class="table-item-image" src="' + item.image + '" alt="' + item.item_name + '">' +
+                        '<div class="table-item-copy">' +
+                            '<strong>' + item.item_name + '</strong>' +
+                            '<span>' + item.description + '</span>' +
+                        '</div>' +
+                    '</div>' +
+                '</td>' +
+                '<td>' +
+                    '<span class="badge">' +
+                        '<i class="fa-solid fa-tags"></i>' +
+                        item.category_name +
+                    '</span>' +
+                '</td>' +
+                '<td class="price-text">' + item.price_html + '</td>' +
+                '<td>' +
+                    '<span class="status-badge ' + stockClass + '">' +
+                        '<i class="fa-solid fa-cubes-stacked"></i>' +
+                        item.stock_text +
+                    '</span>' +
+                '</td>' +
+                '<td>' + item.created_at + '</td>' +
+                '<td>' +
+                    '<div class="table-actions">' +
+                        '<a class="btn btn-secondary" href="' + item.edit_url + '">' +
+                            '<i class="fa-solid fa-pen-to-square"></i>' +
+                            item.edit_label +
+                        '</a>' +
+                        '<a class="btn btn-danger" href="' + item.delete_url + '" data-confirm="' + item.delete_confirm + '">' +
+                            '<i class="fa-solid fa-trash-can"></i>' +
+                            item.delete_label +
+                        '</a>' +
+                    '</div>' +
+                '</td>' +
+            '</tr>';
+    }
+
+    function renderLiveSearchResults(payload, targetBody, emptyState, tableWrap) {
+        if (!payload || !Array.isArray(payload.items)) {
+            return;
+        }
+
+        if (payload.items.length === 0) {
+            targetBody.innerHTML = '';
+
+            if (tableWrap) {
+                tableWrap.setAttribute('hidden', 'hidden');
+            }
+
+            if (emptyState) {
+                emptyState.removeAttribute('hidden');
+            }
+
+            return;
+        }
+
+        targetBody.innerHTML = payload.items.map(buildTableRow).join('');
+
+        if (tableWrap) {
+            tableWrap.removeAttribute('hidden');
+        }
+
+        if (emptyState) {
+            emptyState.setAttribute('hidden', 'hidden');
+        }
+
+        initializeConfirmActions();
+    }
+
+    function initializeLiveSearch() {
+        var form = document.querySelector('[data-live-search-form]');
+
+        if (!form) {
+            return;
+        }
+
+        var input = form.querySelector('input[name="search"]');
+        var endpoint = form.getAttribute('data-live-search-endpoint');
+        var targetSelector = form.getAttribute('data-live-search-target');
+        var emptySelector = form.getAttribute('data-live-search-empty');
+        var tableWrapSelector = form.getAttribute('data-live-search-wrap');
+        var targetBody = targetSelector ? document.querySelector(targetSelector) : null;
+        var emptyState = emptySelector ? document.querySelector(emptySelector) : null;
+        var tableWrap = tableWrapSelector ? document.querySelector(tableWrapSelector) : null;
+        var debounceTimer = null;
+
+        if (!input || !endpoint || !targetBody) {
+            return;
+        }
+
+        form.addEventListener('submit', function (event) {
+            event.preventDefault();
+        });
+
+        input.addEventListener('input', function () {
+            var searchValue = input.value.trim();
+
+            window.clearTimeout(debounceTimer);
+
+            debounceTimer = window.setTimeout(function () {
+                var requestUrl = endpoint + (endpoint.indexOf('?') === -1 ? '?' : '&') + 'search=' + encodeURIComponent(searchValue);
+
+                window.fetch(requestUrl, {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                    .then(function (response) {
+                        if (!response.ok) {
+                            throw new Error('Search request failed');
+                        }
+
+                        return response.json();
+                    })
+                    .then(function (payload) {
+                        renderLiveSearchResults(payload, targetBody, emptyState, tableWrap);
+                    })
+                    .catch(function () {
+                        return;
+                    });
+            }, 220);
+        });
+    }
+
+    function updatePreview(preview, file) {
+        if (!preview) {
+            return;
+        }
+
+        var reader = new FileReader();
+
+        reader.onload = function (event) {
+            preview.innerHTML = '<img src="' + String(event.target.result) + '" alt="Image preview">';
+        };
+
+        reader.readAsDataURL(file);
+    }
+
+    function initializeDragAndDropUploads() {
+        document.querySelectorAll('[data-upload-zone]').forEach(function (zone) {
+            var inputSelector = zone.getAttribute('data-upload-input');
+            var previewSelector = zone.getAttribute('data-upload-preview');
+            var input = inputSelector ? document.querySelector(inputSelector) : null;
+            var preview = previewSelector ? document.querySelector(previewSelector) : null;
+            var trigger = zone.querySelector('[data-upload-trigger]');
+
+            if (!input) {
+                return;
+            }
+
+            function assignFiles(files) {
+                if (!files || !files.length) {
+                    return;
+                }
+
+                var file = files[0];
+
+                if (!file.type || file.type.indexOf('image/') !== 0) {
+                    return;
+                }
+
+                try {
+                    var dataTransfer = new DataTransfer();
+                    dataTransfer.items.add(file);
+                    input.files = dataTransfer.files;
+                } catch (error) {
+                    return;
+                }
+
+                updatePreview(preview, file);
+                zone.classList.add('has-file');
+            }
+
+            zone.addEventListener('click', function (event) {
+                if (event.target.closest('[data-upload-trigger]') || event.target === zone) {
+                    input.click();
+                }
+            });
+
+            if (trigger) {
+                trigger.addEventListener('click', function (event) {
+                    event.preventDefault();
+                    input.click();
+                });
+            }
+
+            zone.addEventListener('dragover', function (event) {
+                event.preventDefault();
+                zone.classList.add('is-dragover');
+            });
+
+            zone.addEventListener('dragleave', function () {
+                zone.classList.remove('is-dragover');
+            });
+
+            zone.addEventListener('drop', function (event) {
+                event.preventDefault();
+                zone.classList.remove('is-dragover');
+                assignFiles(event.dataTransfer.files);
+            });
+
+            input.addEventListener('change', function () {
+                assignFiles(input.files);
+            });
+        });
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
         initializeThemeToggle();
         initializePasswordToggles();
         initializeConfirmActions();
         initializeAutoDismissAlerts();
         initializeActiveLinks();
+        initializeLiveSearch();
+        initializeCounterAnimations();
+        initializeDragAndDropUploads();
     });
 }());
