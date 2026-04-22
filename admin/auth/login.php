@@ -5,6 +5,7 @@ require_once __DIR__ . '/../includes/localization.php';
 
 $currentLanguage = adminCurrentLanguage();
 
+// التحقق مما إذا كان المسؤول مسجل الدخول بالفعل
 if (isset($_SESSION['admin_user_id'])) {
     header('Location: ../inventory/manage.php');
     exit;
@@ -47,20 +48,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $isLegacyPlainText = hash_equals($storedPassword, $password);
 
             if ($passwordMatches || $isLegacyPlainText) {
-                if ($isLegacyPlainText && !$passwordMatches) {
+                // إعادة تشفير كلمة المرور إذا كانت قديمة أو تحتاج تحديث
+                if (($isLegacyPlainText && !$passwordMatches) || password_needs_rehash($storedPassword, PASSWORD_DEFAULT)) {
                     $rehashStatement = $pdo->prepare(
-                        'UPDATE users
-                         SET password = :password
-                         WHERE user_id = :user_id'
-                    );
-                    $rehashStatement->bindValue(':password', password_hash($password, PASSWORD_DEFAULT), PDO::PARAM_STR);
-                    $rehashStatement->bindValue(':user_id', (int) $adminUser['user_id'], PDO::PARAM_INT);
-                    $rehashStatement->execute();
-                } elseif (password_needs_rehash($storedPassword, PASSWORD_DEFAULT)) {
-                    $rehashStatement = $pdo->prepare(
-                        'UPDATE users
-                         SET password = :password
-                         WHERE user_id = :user_id'
+                        'UPDATE users SET password = :password WHERE user_id = :user_id'
                     );
                     $rehashStatement->bindValue(':password', password_hash($password, PASSWORD_DEFAULT), PDO::PARAM_STR);
                     $rehashStatement->bindValue(':user_id', (int) $adminUser['user_id'], PDO::PARAM_INT);
@@ -78,88 +69,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 exit;
             }
         }
-
         $errorMessage = adminTrans('incorrect_admin_credentials');
     }
 }
 
 $pageTitle = adminTrans('admin_login');
-$pageHeading = adminTrans('admin_login');
-$pageDescription = adminTrans('admin_login_desc');
 $showSidebar = false;
 $showTopbar = false;
 $bodyClass = 'login-page';
 
 require_once __DIR__ . '/../includes/header.php';
 ?>
-<div class="login-layout">
-    <section class="login-showcase fade-up">
-        <span class="badge">
-            <i class="fa-solid fa-gem"></i>
-            <?php echo htmlspecialchars(adminTrans('premium_furniture_store'), ENT_QUOTES, 'UTF-8'); ?>
-        </span>
-        <h1><?php echo htmlspecialchars(adminTrans('shape_showroom_title'), ENT_QUOTES, 'UTF-8'); ?></h1>
-        <p>
-            <?php echo htmlspecialchars(adminTrans('shape_showroom_desc'), ENT_QUOTES, 'UTF-8'); ?>
-        </p>
 
-        <div class="login-features">
-            <div class="login-feature">
-                <i class="fa-solid fa-layer-group"></i>
-                <div>
-                    <strong><?php echo htmlspecialchars(adminTrans('curated_inventory_control'), ENT_QUOTES, 'UTF-8'); ?></strong>
-                    <p style="margin: 4px 0 0;"><?php echo htmlspecialchars(adminTrans('curated_inventory_control_desc'), ENT_QUOTES, 'UTF-8'); ?></p>
-                </div>
-            </div>
-            <div class="login-feature">
-                <i class="fa-solid fa-shield-halved"></i>
-                <div>
-                    <strong><?php echo htmlspecialchars(adminTrans('protected_admin_access'), ENT_QUOTES, 'UTF-8'); ?></strong>
-                    <p style="margin: 4px 0 0;"><?php echo htmlspecialchars(adminTrans('protected_admin_access_desc'), ENT_QUOTES, 'UTF-8'); ?></p>
-                </div>
-            </div>
-            <div class="login-feature">
-                <i class="fa-solid fa-swatchbook"></i>
-                <div>
-                    <strong><?php echo htmlspecialchars(adminTrans('designed_for_clarity'), ENT_QUOTES, 'UTF-8'); ?></strong>
-                    <p style="margin: 4px 0 0;"><?php echo htmlspecialchars(adminTrans('designed_for_clarity_desc'), ENT_QUOTES, 'UTF-8'); ?></p>
-                </div>
-            </div>
-        </div>
-
-        <ul class="trust-list">
-            <li>
-                <i class="fa-solid fa-lock"></i>
-                <?php echo htmlspecialchars(adminTrans('secure_admin_sign_in'), ENT_QUOTES, 'UTF-8'); ?>
-            </li>
-            <li>
-                <i class="fa-solid fa-warehouse"></i>
-                <?php echo htmlspecialchars(adminTrans('inventory_ready_workflow'), ENT_QUOTES, 'UTF-8'); ?>
-            </li>
-            <li>
-                <i class="fa-solid fa-moon"></i>
-                <?php echo htmlspecialchars(adminTrans('built_in_theme_memory'), ENT_QUOTES, 'UTF-8'); ?>
-            </li>
-        </ul>
-    </section>
-
-    <section class="login-card fade-up delay-1">
+<div class="login-layout" style="display: flex; justify-content: center; align-items: center; min-height: 90vh; padding: 20px;">
+    <section class="login-card fade-up" style="max-width: 450px; width: 100%; margin: 0 auto;">
+        
         <span class="badge">
             <i class="fa-solid fa-user-shield"></i>
             <?php echo htmlspecialchars(adminTrans('admin_portal'), ENT_QUOTES, 'UTF-8'); ?>
         </span>
+        
         <h2><?php echo htmlspecialchars(adminTrans('welcome_back'), ENT_QUOTES, 'UTF-8'); ?></h2>
         <p><?php echo htmlspecialchars(adminTrans('sign_in_with_admin_account'), ENT_QUOTES, 'UTF-8'); ?></p>
 
+        <!-- تبديل اللغة -->
         <div class="lang-switch" style="margin: 18px 0 22px;">
-            <a class="icon-btn lang-btn <?php echo adminCurrentLanguage() === 'en' ? 'active' : ''; ?>" href="<?php echo htmlspecialchars(adminUrlWithLang('en'), ENT_QUOTES, 'UTF-8'); ?>" aria-label="<?php echo htmlspecialchars(adminTrans('switch_to_english'), ENT_QUOTES, 'UTF-8'); ?>">
+            <a class="icon-btn lang-btn <?php echo adminCurrentLanguage() === 'en' ? 'active' : ''; ?>" href="<?php echo htmlspecialchars(adminUrlWithLang('en'), ENT_QUOTES, 'UTF-8'); ?>">
                 <?php echo htmlspecialchars(adminTrans('language_en'), ENT_QUOTES, 'UTF-8'); ?>
             </a>
-            <a class="icon-btn lang-btn <?php echo adminCurrentLanguage() === 'ar' ? 'active' : ''; ?>" href="<?php echo htmlspecialchars(adminUrlWithLang('ar'), ENT_QUOTES, 'UTF-8'); ?>" aria-label="<?php echo htmlspecialchars(adminTrans('switch_to_arabic'), ENT_QUOTES, 'UTF-8'); ?>">
+            <a class="icon-btn lang-btn <?php echo adminCurrentLanguage() === 'ar' ? 'active' : ''; ?>" href="<?php echo htmlspecialchars(adminUrlWithLang('ar'), ENT_QUOTES, 'UTF-8'); ?>">
                 <?php echo htmlspecialchars(adminTrans('language_ar'), ENT_QUOTES, 'UTF-8'); ?>
             </a>
         </div>
 
+        <!-- التنبيهات -->
         <?php if ($successMessage !== '' && $messageType === 'success'): ?>
             <div class="alert alert-success" data-auto-dismiss="4000">
                 <i class="fa-solid fa-circle-check"></i>
@@ -174,17 +117,16 @@ require_once __DIR__ . '/../includes/header.php';
             </div>
         <?php endif; ?>
 
+        <!-- نموذج تسجيل الدخول -->
         <form class="login-form" action="login.php" method="post" novalidate>
             <div class="form-group">
                 <label for="email"><?php echo htmlspecialchars(adminTrans('admin_email'), ENT_QUOTES, 'UTF-8'); ?></label>
-                <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    inputmode="email"
-                    autocomplete="username"
+                <input 
+                    id="email" 
+                    name="email" 
+                    type="email" 
                     placeholder="<?php echo htmlspecialchars(adminTrans('admin_email_placeholder'), ENT_QUOTES, 'UTF-8'); ?>"
-                    value="<?php echo htmlspecialchars($email, ENT_QUOTES, 'UTF-8'); ?>"
+                    value="<?php echo htmlspecialchars($email, ENT_QUOTES, 'UTF-8'); ?>" 
                     required
                 >
             </div>
@@ -192,33 +134,33 @@ require_once __DIR__ . '/../includes/header.php';
             <div class="form-group">
                 <label for="password"><?php echo htmlspecialchars(adminTrans('password'), ENT_QUOTES, 'UTF-8'); ?></label>
                 <div class="password-field">
-                    <input
-                        id="password"
-                        name="password"
-                        type="password"
-                        autocomplete="current-password"
+                    <input 
+                        id="password" 
+                        name="password" 
+                        type="password" 
                         placeholder="<?php echo htmlspecialchars(adminTrans('password_placeholder'), ENT_QUOTES, 'UTF-8'); ?>"
                         required
                     >
-                    <button
-                        class="password-toggle"
-                        type="button"
-                        data-password-toggle
+                    <button 
+                        class="password-toggle" 
+                        type="button" 
+                        data-password-toggle 
                         data-target="#password"
-                        data-label-show="<?php echo htmlspecialchars(adminTrans('show_password'), ENT_QUOTES, 'UTF-8'); ?>"
-                        data-label-hide="<?php echo htmlspecialchars(adminTrans('hide_password'), ENT_QUOTES, 'UTF-8'); ?>"
-                        aria-label="<?php echo htmlspecialchars(adminTrans('show_password'), ENT_QUOTES, 'UTF-8'); ?>"
+                        aria-label="Toggle Password"
                     >
                         <i class="fa-solid fa-eye"></i>
                     </button>
                 </div>
             </div>
 
-            <div class="action-row">
-                <button class="btn btn-primary" type="submit">
+            <div class="action-row" style="display: flex; gap: 12px; align-items: center; margin-top: 25px;">
+                <!-- زر تسجيل الدخول -->
+                <button class="btn btn-primary" type="submit" style="flex: 1; justify-content: center;">
                     <i class="fa-solid fa-arrow-right-to-bracket"></i>
                     <?php echo htmlspecialchars(adminTrans('sign_in'), ENT_QUOTES, 'UTF-8'); ?>
                 </button>
+                
+                <!-- زر تغيير الثيم -->
                 <button
                     class="theme-toggle"
                     type="button"
@@ -226,7 +168,7 @@ require_once __DIR__ . '/../includes/header.php';
                     data-title-light="<?php echo htmlspecialchars(adminTrans('theme_light'), ENT_QUOTES, 'UTF-8'); ?>"
                     data-title-dark="<?php echo htmlspecialchars(adminTrans('theme_dark'), ENT_QUOTES, 'UTF-8'); ?>"
                     aria-label="<?php echo htmlspecialchars(adminTrans('toggle_theme'), ENT_QUOTES, 'UTF-8'); ?>"
-                    aria-pressed="false"
+                    style="flex-shrink: 0;"
                 >
                     <i class="fa-solid fa-moon" data-theme-icon></i>
                 </button>
@@ -234,4 +176,5 @@ require_once __DIR__ . '/../includes/header.php';
         </form>
     </section>
 </div>
+
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>
