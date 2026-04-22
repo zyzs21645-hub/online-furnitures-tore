@@ -38,6 +38,7 @@ $metrics = $metricsStatement->fetch() ?: [
     'low_stock_items' => 0,
 ];
 
+
 if ($searchTerm !== '') {
     $searchPattern = '%' . $searchTerm . '%';
 
@@ -46,13 +47,35 @@ if ($searchTerm !== '') {
                 c.category_name
          FROM furniture_items fi
          LEFT JOIN categories c ON fi.category_id = c.category_id
-         WHERE fi.item_name LIKE :search_term
-            OR fi.description LIKE :search_term
-            OR COALESCE(c.category_name, \'\') LIKE :search_term
+         WHERE fi.item_name LIKE :search1
+            OR fi.description LIKE :search2
+            OR COALESCE(c.category_name, \'\') LIKE :search3
          ORDER BY fi.created_at DESC, fi.item_id DESC'
     );
-    $itemsStatement->bindValue(':search_term', $searchPattern, PDO::PARAM_STR);
+    
+    // ربط نفس القيمة بالمتغيرات الثلاثة
+    $itemsStatement->bindValue(':search1', $searchPattern, PDO::PARAM_STR);
+    $itemsStatement->bindValue(':search2', $searchPattern, PDO::PARAM_STR);
+    $itemsStatement->bindValue(':search3', $searchPattern, PDO::PARAM_STR);
+    
     $itemsStatement->execute();
+// } else {
+
+// if ($searchTerm !== '') {
+//     $searchPattern = '%' . $searchTerm . '%';
+
+//     $itemsStatement = $pdo->prepare(
+//         'SELECT fi.item_id, fi.item_name, fi.description, fi.price, fi.stock_quantity, fi.image, fi.created_at,
+//                 c.category_name
+//          FROM furniture_items fi
+//          LEFT JOIN categories c ON fi.category_id = c.category_id
+//          WHERE fi.item_name LIKE :search_term
+//             OR fi.description LIKE :search_term
+//             OR COALESCE(c.category_name, \'\') LIKE :search_term
+//          ORDER BY fi.created_at DESC, fi.item_id DESC'
+//     );
+//     $itemsStatement->bindValue(':search_term', $searchPattern, PDO::PARAM_STR);
+//     $itemsStatement->execute();
 } else {
     $itemsStatement = $pdo->query(
         'SELECT fi.item_id, fi.item_name, fi.description, fi.price, fi.stock_quantity, fi.image, fi.created_at,
