@@ -2,7 +2,199 @@
 declare(strict_types=1);
 
 if (session_status() === PHP_SESSION_NONE) {
+    session_set_cookie_params([
+        'lifetime' => 0,
+        'path' => '/',
+        'domain' => '',
+        'secure' => (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off'),
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ]);
     session_start();
+}
+
+if (!function_exists('adminRememberCookieName')) {
+    function adminRememberCookieName(): string
+    {
+        return 'admin_remember';
+    }
+}
+
+if (!function_exists('adminRememberCookieLifetime')) {
+    function adminRememberCookieLifetime(): int
+    {
+        return 60 * 60 * 24 * 30;
+    }
+}
+
+if (!function_exists('adminRememberCookieSecret')) {
+    function adminRememberCookieSecret(): string
+    {
+        return 'online_furniture_store_admin_remember_v1_7f3b22f0a9b44d8d9f214e4c5b672a31';
+    }
+}
+
+if (!function_exists('adminRememberCookieOptions')) {
+    function adminRememberCookieOptions(int $expires): array
+    {
+        return [
+            'expires' => $expires,
+            'path' => '/',
+            'domain' => '',
+            'secure' => (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off'),
+            'httponly' => true,
+            'samesite' => 'Lax',
+        ];
+    }
+}
+
+if (!function_exists('adminLanguageCookieName')) {
+    function adminLanguageCookieName(): string
+    {
+        return 'lang';
+    }
+}
+
+if (!function_exists('adminLanguageCookieLifetime')) {
+    function adminLanguageCookieLifetime(): int
+    {
+        return 60 * 60 * 24 * 30;
+    }
+}
+
+if (!function_exists('adminLanguageCookieOptions')) {
+    function adminLanguageCookieOptions(int $expires): array
+    {
+        return [
+            'expires' => $expires,
+            'path' => '/',
+            'domain' => '',
+            'secure' => (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off'),
+            'httponly' => false,
+            'samesite' => 'Lax',
+        ];
+    }
+}
+
+if (!function_exists('adminSetLanguageCookie')) {
+    function adminSetLanguageCookie(string $language): void
+    {
+        if (!in_array($language, adminAvailableLanguages(), true)) {
+            return;
+        }
+
+        $expires = time() + adminLanguageCookieLifetime();
+        setcookie(adminLanguageCookieName(), $language, adminLanguageCookieOptions($expires));
+        $_COOKIE[adminLanguageCookieName()] = $language;
+    }
+}
+
+if (!function_exists('adminSetRememberCookie')) {
+    function adminSetRememberCookie(array $user): void
+    {
+        $userId = (int) ($user['user_id'] ?? 0);
+        $email = trim((string) ($user['email'] ?? ''));
+        $role = trim((string) ($user['role'] ?? ''));
+        $password = (string) ($user['password'] ?? '');
+
+        if ($userId < 1 || $email === '' || $role === '' || $password === '') {
+            return;
+        }
+
+        $expires = time() + adminRememberCookieLifetime();
+        $payload = $userId . '|' . $email . '|' . $role . '|' . $expires;
+        $signature = hash_hmac('sha256', $payload . '|' . $password, adminRememberCookieSecret());
+        $cookieValue = base64_encode($payload . '|' . $signature);
+
+        setcookie(adminRememberCookieName(), $cookieValue, adminRememberCookieOptions($expires));
+        $_COOKIE[adminRememberCookieName()] = $cookieValue;
+    }
+}
+
+if (!function_exists('adminClearRememberCookie')) {
+    function adminClearRememberCookie(): void
+    {
+        setcookie(adminRememberCookieName(), '', adminRememberCookieOptions(time() - 3600));
+        unset($_COOKIE[adminRememberCookieName()]);
+    }
+}
+
+if (!function_exists('adminRestoreRememberedSession')) {
+    function adminRestoreRememberedSession(): void
+    {
+        if (isset($_SESSION['admin_user_id']) && strtolower((string) ($_SESSION['admin_role'] ?? '')) === 'admin') {
+            return;
+        }
+
+        $cookieValue = $_COOKIE[adminRememberCookieName()] ?? '';
+
+        if (!is_string($cookieValue) || trim($cookieValue) === '') {
+            return;
+        }
+
+        $decoded = base64_decode($cookieValue, true);
+
+        if ($decoded === false) {
+            adminClearRememberCookie();
+            return;
+        }
+
+        $parts = explode('|', $decoded);
+
+        if (count($parts) !== 5) {
+            adminClearRememberCookie();
+            return;
+        }
+
+        [$userId, $email, $role, $expires, $signature] = $parts;
+
+        if (!ctype_digit($userId) || !ctype_digit($expires) || (int) $expires < time() || strtolower($role) !== 'admin') {
+            adminClearRememberCookie();
+            return;
+        }
+
+        require_once __DIR__ . '/../config/db_connect.php';
+
+        if (!isset($pdo) || !($pdo instanceof PDO)) {
+            adminClearRememberCookie();
+            return;
+        }
+
+        $statement = $pdo->prepare(
+            'SELECT user_id, full_name, email, password, role
+             FROM users
+             WHERE user_id = :user_id
+             LIMIT 1'
+        );
+        $statement->bindValue(':user_id', (int) $userId, PDO::PARAM_INT);
+        $statement->execute();
+        $user = $statement->fetch();
+
+        if (!$user) {
+            adminClearRememberCookie();
+            return;
+        }
+
+        $expectedPayload = (int) $user['user_id'] . '|' . (string) $user['email'] . '|' . (string) $user['role'] . '|' . (int) $expires;
+        $expectedSignature = hash_hmac('sha256', $expectedPayload . '|' . (string) $user['password'], adminRememberCookieSecret());
+
+        if (
+            !hash_equals((string) $user['email'], $email)
+            || !hash_equals(strtolower((string) $user['role']), strtolower($role))
+            || !hash_equals($expectedSignature, $signature)
+        ) {
+            adminClearRememberCookie();
+            return;
+        }
+
+        session_regenerate_id(true);
+        $_SESSION['admin_user_id'] = (int) $user['user_id'];
+        $_SESSION['admin_full_name'] = (string) $user['full_name'];
+        $_SESSION['admin_email'] = (string) $user['email'];
+        $_SESSION['admin_role'] = (string) $user['role'];
+
+        adminSetRememberCookie($user);
+    }
 }
 
 if (!function_exists('adminAvailableLanguages')) {
@@ -19,13 +211,24 @@ if (!function_exists('adminCurrentLanguage')) {
 
         if (isset($_GET['lang']) && is_string($_GET['lang']) && in_array($_GET['lang'], $allowedLanguages, true)) {
             $_SESSION['admin_lang'] = $_GET['lang'];
+            adminSetLanguageCookie($_GET['lang']);
         }
 
         if (isset($_SESSION['admin_lang']) && is_string($_SESSION['admin_lang']) && in_array($_SESSION['admin_lang'], $allowedLanguages, true)) {
             return $_SESSION['admin_lang'];
         }
 
+        if (
+            isset($_COOKIE[adminLanguageCookieName()])
+            && is_string($_COOKIE[adminLanguageCookieName()])
+            && in_array($_COOKIE[adminLanguageCookieName()], $allowedLanguages, true)
+        ) {
+            $_SESSION['admin_lang'] = $_COOKIE[adminLanguageCookieName()];
+            return $_SESSION['admin_lang'];
+        }
+
         $_SESSION['admin_lang'] = 'en';
+        adminSetLanguageCookie('en');
         return 'en';
     }
 }
@@ -198,14 +401,14 @@ if (!function_exists('adminTranslations')) {
             'ar' => [
                 'site_name' => 'متجر الأثاث الإلكتروني',
                 'admin_panel' => 'لوحة التحكم',
-                'furniture_admin' => 'إدارة الأثاث',
+                'furniture_admin' => 'إدارة المخزون',
                 'elegant_inventory_control_panel' => 'لوحة أنيقة لإدارة المخزون',
                 'manage_products_securely' => 'إدارة المنتجات والمخزون وأنشطة المشرف بشكل آمن.',
                 'administrator' => 'المشرف',
                 'manage_inventory' => 'إدارة المخزون',
                 'add_new_item' => 'إضافة عنصر جديد',
                 'logout' => 'تسجيل الخروج',
-                'signed_in_catalog_note' => 'تم تسجيل الدخول للحفاظ على الكتالوج منظمًا وجاهزًا للمتسوقين.',
+                'signed_in_catalog_note' => 'مرحبا بك نتمنى لك وقتا ممتعا',
                 'toggle_theme' => 'تبديل المظهر',
                 'switch_to_english' => 'التبديل إلى الإنجليزية',
                 'switch_to_arabic' => 'التبديل إلى العربية',
@@ -246,7 +449,7 @@ if (!function_exists('adminTranslations')) {
                 'inventory_dashboard' => 'لوحة المخزون',
                 'inventory_dashboard_desc' => 'تابع منتجات الأثاث وحركة المخزون وجاهزية العناصر من مساحة عمل واحدة أنيقة.',
                 'admin_inventory_control' => 'التحكم الإداري بالمخزون',
-                'maintain_curated_catalog' => 'حافظ على كتالوج منظم مع رؤية دقيقة للمخزون.',
+                'maintain_curated_catalog' => 'حافظ على مخزون منظم مع رؤية دقيقة للمخزون.',
                 'maintain_curated_catalog_desc' => 'راجع كل عنصر أثاث وحدد المنتجات منخفضة المخزون بسرعة وحافظ على واجهة المتجر بخيارات تعديل وحذف سريعة.',
                 'add_furniture' => 'إضافة أثاث',
                 'add_new_item_full' => 'إضافة عنصر جديد',
@@ -390,3 +593,5 @@ if (!function_exists('adminUrlWithLang')) {
         return $route . ($queryString !== '' ? '?' . $queryString : '');
     }
 }
+
+adminRestoreRememberedSession();
