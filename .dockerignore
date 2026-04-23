@@ -1,8 +1,0 @@
-.git
-.gitignore
-.vscode
-.idea
-node_modules
-vendor
-docker-compose.yml
-docker-compose.yaml
