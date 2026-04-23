@@ -16,11 +16,10 @@ declare(strict_types=1);
 // if (!defined('DB_PASS')) {
 //     define('DB_PASS', '');
 // }
-
-$dbHost = $_ENV['DB_HOST'] ?? getenv('DB_HOST') ?? 'localhost';
-$dbName = $_ENV['DB_NAME'] ?? getenv('DB_NAME') ?? 'online_furniture_store';
-$dbUser = $_ENV['DB_USER'] ?? getenv('DB_USER') ?? 'root';
-$dbPass = $_ENV['DB_PASS'] ?? getenv('DB_PASS') ?? '';
+$host = getenv('MYSQLHOST');
+$db   = getenv('MYSQLDATABASE');
+$user = getenv('MYSQLUSER');
+$pass = getenv('MYSQLPASSWORD');
 
 if (!isset($pdo) || !($pdo instanceof PDO)) {
    
